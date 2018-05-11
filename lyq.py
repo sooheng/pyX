@@ -11,7 +11,7 @@ from requests import HTTPError
 import pickle
 
 # data
-with open('d://gitku//pyX//lyqZH.pkl', 'rb') as fp:
+with open('./lyqZH.pkl', 'rb') as fp:
     zhangHao, mima  = pickle.load(fp)
 #pa = {
 #        '路由器状态':{'code':2,'asyn':1}
