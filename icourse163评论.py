@@ -6,6 +6,7 @@ Created on Tue Apr 10 14:14:53 2018
 """
 
 from selenium import webdriver
+from selenium.common.exceptions import StaleElementReferenceException, ElementNotVisibleException
 import os
 from time import time, localtime, sleep
 import json
@@ -27,22 +28,57 @@ for cok in cookies:
     dr.add_cookie(cok)
 dr.get(url)# 再次访问页面，便可实现免登陆访问
 dr.get(url+ '#/learn/content?type=detail&id=1003843713&cid=1004685430')
-#%%
-class AutoElement(object):
-    
-    def __init__(self, cont, xpath=''):        
-        self.cont = cont
-        self.xpath = xpath        
-        self.ele = self.updata()    
-    def updata(self):   
-        return self.cont.find_elements_by_xpath(self.xpath)
 #%% 9-2
-def clk(ele, cont):
+
+class EmptylistException(Exception):
+    def __init__(self,err='找不到元素,列表是空的'):
+        Exception.__init__(self,err)
+     
+class xplist(list):
+    '''
+    生成WebElement标签元素的列表,列表附带有标签的上级标签cont,查找使用的xpath,
+    注意对xplist排序，切片后，由于是调用list的方法，所以会返回list类型。
+    '''
+    def __init__(self, cont, xpath):
+        '''上级标签cont,查找使用的xpath'''
+        self.cont = cont
+        self.xpath = xpath
+        __list = self.cont.find_elements_by_xpath(self.xpath)
+        super(xplist,self).__init__(__list)
+    
+    def upEles(self):
+        '''重新生成WebElement标签元素的列表'''
+        print('更新eles')
+        __xplist = xplist(self.cont, self.xpath)
+        return __xplist      
+    
+    def findEles(self,contclk):
+        try:        
+            eles = xplist(self.cont, self.xpath)
+            if bool(eles):
+                raise EmptylistException()
+        except EmptylistException:
+            contclk.click()
+            eles = xplist(self.cont, self.xpath)
+            if bool(eles):
+                print(contclk,'点开还是找不到！')
+            else:
+                print('点开cont找到元素')
+        return eles
+
+    
+#%%
+def clk(ele, contclk=None):
+    '''不可见的元素,点击后使它可见'''
     try:
         ele.click()
-    except:
-        cont.click()
-        ele.click()     
+    except ElementNotVisibleException:
+        contclk.click()
+        ele.click()
+        print('点开cont点开元素')
+
+
+
 def ping():
     dr.find_element_by_xpath(".//span[@class='f-icon u-icon-discuss2']").click()
     dr.find_element_by_xpath("//a[text()='发表回复']").click() #先点回复，渲染iframe
@@ -59,6 +95,33 @@ def ping():
     print('发表')
     sleep(randint(0,5))
 
+#%%
+
+cont2 = xplist(dr, "//div[@class='up j-up f-thide']")
+chap12 = xplist(dr, "//div[@class='up j-up f-thide']/..//div[@class='f-thide list']")
+chap12.findEles(cont2[0])
+
+for j in range(12):
+    try:
+        clk(chap12[j], cont2[0])
+    except StaleElementReferenceException:
+        cont2 = cont2.upEles()
+        chap12 = chap12.upEles()
+        print('更新章节')
+        clk(chap12[j], cont2[0])
+#%%
+    lesson = findEles(cont2[1], dr, "//div[@class='up j-up f-thide']/..//div[@class='f-thide list']")
+    for i in range(len(lesson)):
+        try:
+            clk(lesson[i], cont2[1])
+        except StaleElementReferenceException:
+            cont2 = cont2.upEles()
+            lesson = lesson.upEles()
+            print('更新课程')
+            clk(lesson[i], cont2[1])
+        print('进入页面')
+            
+        
 #%%  
 cont2 = dr.find_elements_by_xpath("//div[@class='up j-up f-thide']")
 cont2[0].click()
@@ -85,5 +148,5 @@ for j in range(8,12):
             cont2[1].click()
             lesson = cont2[1].find_elements_by_xpath("./../div/div")
             clk(lesson[i], cont2[1])
-        print('...')
+        print(lesson[i].text)
 #        ping()
