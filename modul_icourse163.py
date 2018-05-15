@@ -5,6 +5,64 @@ Created on Mon May 14 17:36:16 2018
 @author: user
 """
 from selenium.common.exceptions import StaleElementReferenceException, ElementNotVisibleException
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium import webdriver
+import json
+#%%
+#exmples:
+#wait.until(EC.presence_of_element_located((By.XPATH, '/html')))
+#wait.until(lambda ele:ele.is_displayed())
+#chrome_options.add_argument(r"user-data-dir=C:\Users\user\AppData\Local\Google\Chrome\User Data")
+#chrome_options.add_argument('--headless')
+#%%
+class Page(object):
+    '''多个页面page共享一个浏览器dr'''
+    dr = None
+    wait = None
+    
+    def __init__(self):
+        if not (self.dr and self.wait):
+            self.startup()
+            
+    @classmethod
+    def startup(cls):     
+        chrome_options = webdriver.ChromeOptions()   
+        abspath = 'C:/Program Files (x86)/Google/Chrome/Application/chromedriver.exe'
+        dr = webdriver.Chrome(abspath, chrome_options=chrome_options)
+        dr.implicitly_wait(10)
+        wait = WebDriverWait(dr, 10) #等待的最大时间10
+        cls.dr = dr
+        cls.wait = wait
+        return dr, wait
+    
+    @classmethod
+    def setCookies(cls, url):
+        cls.dr.get(url)
+        cls.dr.delete_all_cookies()
+        host = cls.dr.current_url.split('/')[2]
+        with open('./{0}.json'.format(host), 'r')as fp:
+            cookies = json.load(fp)
+        for cook in cookies:
+            cls.dr.add_cookie(cook)
+        cls.dr.get(url)# 再次访问页面，便可实现免登陆访问
+    
+    @classmethod
+    def updataCookies(cls):
+        cookies = cls.dr.get_cookies()
+        host = cls.dr.current_url.split('/')[2]
+        with open('./{0}.json'.format(host), 'w') as fp:
+            json.dump(cookies, fp)
+            
+    @classmethod
+    def keeplogs(cls):
+        logs = cls.dr.get_log('browser')
+        host = cls.dr.current_url.split('/')[2]
+        with open('./logbr/{0}.json'.format(host), 'w') as fp:
+            json.dump(logs, fp)
+        logs_driver = cls.dr.get_log('driver')
+        with open('./logdr/{0}.json'.format(host), 'w') as fp:
+            json.dump(logs_driver, fp)
+    
 
 #%%
 class EmptylistException(Exception):
@@ -30,6 +88,8 @@ class Xplist(object):
             
     def clk2upEles(self,contclk):
         '''点击后更新标签元素的列表'''
+        if not contclk.is_displayed():
+            contclk.click()
         try:
             contclk.click()
             self.upEles()        
